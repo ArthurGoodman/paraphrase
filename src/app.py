@@ -1,16 +1,9 @@
 """Paraprase identification."""
 
-# from sklearn.svm import SVC
-# from nltk.classify import SklearnClassifier
+from sklearn.svm import SVC
+from nltk.classify import SklearnClassifier
 
-# train_features = [({'x': -1, 'y': -1}, 'one'),
-#                   ({'x': -2, 'y': -1}, 'one'),
-#                   ({'x': 1, 'y': 1}, 'two'),
-#                   ({'x': 2, 'y': 1}, 'two')]
-
-# classifier = SklearnClassifier(SVC(), sparse=False).train(train_features)
-
-# print(classifier.classify({'x': 2, 'y': 0}))
+classifier = SklearnClassifier(SVC(kernel="rbf"), sparse=False)
 
 
 def _read_data(file_name):
@@ -30,7 +23,41 @@ def _read_data(file_name):
     return data
 
 
+def _build_features(a, b):
+    features = {}
+
+    features[0] = 0
+
+    return features
+
+
+def _classify(a, b):
+    return classifier.classify(_build_features('a', 'b'))
+
+
 def main():
     """Main."""
     train_sentences = _read_data('../data/msr_paraphrase_train.txt')
-    print(train_sentences)
+    train_features = []
+
+    for sentence in train_sentences:
+        features = _build_features(sentence[0], sentence[1])
+        label = sentence[2]
+
+        train_features.append((features, label))
+
+    print(train_features)
+
+    print('Training...')
+
+    classifier.train(train_features)
+
+    print('Success!')
+
+    a = 'Her life spanned years of incredible change for women.'
+    b = 'Mary lived through an era of liberating reform for women.'
+
+    print(_classify(a, b))
+
+
+main()

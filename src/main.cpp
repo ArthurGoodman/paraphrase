@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
     Py_SetProgramName(program);
     Py_Initialize();
 
-    PyRun_SimpleString("exec(open('../src/app.py').read()); main()");
+    PyRun_SimpleString("exec(open('../src/app.py').read())");
 
     Py_Finalize();
 
