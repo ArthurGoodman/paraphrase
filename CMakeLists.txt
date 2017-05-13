@@ -11,8 +11,10 @@ project(paraphrase)
 file(GLOB_RECURSE sources "src/*.cpp")
 file(GLOB_RECURSE headers "src/*.h")
 
-# include_directories(".")
-
 set(EXECUTABLE_OUTPUT_PATH "bin")
 
 add_executable(paraphrase ${sources} ${headers})
+
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
+target_link_libraries(paraphrase ${PYTHON_LIBRARIES})
