@@ -1,6 +1,4 @@
 #include <Python.h>
-#include <cstdio>
-#include <wchar.h>
 
 int main(int argc, char **argv) {
     wchar_t *program = Py_DecodeLocale(argv[0], NULL);

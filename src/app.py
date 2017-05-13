@@ -23,7 +23,7 @@ def _read_data(file_name):
     return data
 
 
-def _build_features(a, b):
+def _features(a, b):
     features = {}
 
     features[0] = 0
@@ -31,33 +31,70 @@ def _build_features(a, b):
     return features
 
 
+def _build_features(data):
+    features = []
+
+    for case in data:
+        feature_vector = _features(case[0], case[1])
+        label = case[2]
+
+        features.append((feature_vector, label))
+
+    return features
+
+
 def _classify(a, b):
-    return classifier.classify(_build_features('a', 'b'))
+    return classifier.classify(_features(a, b))
 
 
-def main():
-    """Main."""
-    train_sentences = _read_data('../data/msr_paraphrase_train.txt')
-    train_features = []
+def _train():
+    train_data = _read_data('../data/msr_paraphrase_train.txt')
+    train_features = _build_features(train_data)
 
-    for sentence in train_sentences:
-        features = _build_features(sentence[0], sentence[1])
-        label = sentence[2]
-
-        train_features.append((features, label))
-
-    print(train_features)
+    # print(train_features)
 
     print('Training...')
 
     classifier.train(train_features)
 
-    print('Success!')
 
-    a = 'Her life spanned years of incredible change for women.'
-    b = 'Mary lived through an era of liberating reform for women.'
+def _test():
+    test_data = _read_data('../data/msr_paraphrase_test.txt')
 
-    print(_classify(a, b))
+    print('Testing...\n')
+
+    tp, tn, fp, fn = 0, 0, 0, 0
+
+    for case in test_data:
+        result = _classify(case[0], case[1])
+        label = case[2]
+
+        if result == label:
+            if result == 1:
+                tp += 1
+            else:
+                tn += 1
+        else:
+            if result == 1:
+                fp += 1
+            else:
+                fn += 1
+
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+
+    f1 = 2 * precision * recall / (precision + recall)
+
+    print('Accuracy: %i%%' % int(accuracy * 100))
+    print('F1: %f' % f1)
+
+
+def main():
+    """Main."""
+    _train()
+    _test()
 
 
 main()
