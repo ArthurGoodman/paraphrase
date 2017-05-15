@@ -62,18 +62,112 @@ def _read_data(file_name):
     return data
 
 
+def _match_ngram(a, b, match):
+    if len(a) != len(b):
+        return False
+
+    for i in range(len(a)):
+        if not match(a[i], b[i]):
+            return False
+
+    return True
+
+
+def _count(gram, rf, n, match):
+    from nltk import ngrams
+
+    count = 0
+
+    for rf_gram in ngrams(rf, n):
+        if _match_ngram(gram, rf_gram, match):
+            count += 1
+
+    return count
+
+
+def _bleu(rf, tr, n, match):
+    from nltk import ngrams
+    import math
+
+    bleu = 0
+
+    for i in range(1, n + 1):
+        counts = {}
+        ln = 0
+
+        for tr_gram in ngrams(tr, i):
+            if tr_gram not in counts:
+                counts[tr_gram] = 0
+
+            ln += 1
+
+            if _count(tr_gram, rf, i, match) > 0:
+                counts[tr_gram] += 1
+
+        max_counts = {}
+
+        for gram in counts:
+            max_counts[gram] = _count(gram, rf, i, match)
+
+        mn = 0
+
+        for gram in counts:
+            mn += min(max_counts[gram], counts[gram])
+
+        v = mn / ln
+
+        if v > 0:
+            bleu += math.log(v)
+
+    return min(1, math.exp(1 - len(rf) / len(tr))) * \
+        math.pow(math.exp(bleu), 1 / n)
+
+
+def _literal_match(a, b):
+    return a[0] == b[0]
+
+
+synonyms = {}
+
+
+def _synonym_match(a, b):
+    if a[0] == b[0]:
+        return True
+
+    from itertools import chain
+    from nltk.corpus import wordnet as wn
+
+    if b[0] not in synonyms:
+        synsets = wn.synsets(b[0])
+        lemmas = set(chain.from_iterable(
+            [word.lemma_names() for word in synsets]))
+
+        synonyms[b[0]] = lemmas
+
+    return a[0] in synonyms[b[0]]
+
+
+def _pos_match(a, b):
+    return a[1] == b[1]
+
+
 def _features(a, b):
-    import nltk
-
-    a_words = [word[0] for word in a]
-    b_words = [word[0] for word in b]
-
     features = {}
 
-    bleu = nltk.translate.bleu_score.sentence_bleu(
-        [a_words], b_words, weights=[1])
+    features['bleu1'] = _bleu(a, b, 1, _literal_match)
+    features['bleu2'] = _bleu(a, b, 2, _literal_match)
+    features['bleu3'] = _bleu(a, b, 3, _literal_match)
+    features['bleu4'] = _bleu(a, b, 4, _literal_match)
 
-    features[len(features)] = bleu
+    features['pos_bleu1'] = _bleu(a, b, 1, _pos_match)
+    features['pos_bleu2'] = _bleu(a, b, 2, _pos_match)
+    features['pos_bleu3'] = _bleu(a, b, 3, _pos_match)
+    features['pos_bleu4'] = _bleu(a, b, 4, _pos_match)
+
+    features['syn1'] = _bleu(a, b, 1, _synonym_match)
+    features['syn2'] = _bleu(a, b, 2, _synonym_match)
+    features['syn3'] = _bleu(a, b, 3, _synonym_match)
+    features['syn4'] = _bleu(a, b, 4, _synonym_match)
 
     return features
 
@@ -84,19 +178,38 @@ def _preprocess(sentence):
     sentence = sentence.translate(dict.fromkeys(map(ord, ".!?"), None))
 
     tokens = _tokenize(sentence, False)[0]
-    tokens = [token for token in tokens if token[0].isalnum()]
+    tokens = [token.lower() for token in tokens if token[0].isalnum()]
 
     return nltk.pos_tag(tokens)
 
 
+def _progress_bar(progress, length):
+    return '[' + '=' * int(progress * length) + \
+        ' ' * int((1 - progress) * length) + ']'
+
+
 def _build_features(data):
+    import sys
+
     features = []
+
+    i = 0
 
     for case in data:
         feature_vector = _features(_preprocess(case[0]), _preprocess(case[1]))
         label = case[2]
 
+        sys.stdout.write('\r%s %i%% ' %
+                         (_progress_bar(i / len(data), 70),
+                          int(100 * (i + 1) / len(data))))
+
+        sys.stdout.flush()
+
+        i += 1
+
         features.append((feature_vector, label))
+
+    print('')
 
     return features
 
@@ -144,9 +257,16 @@ def _test(classifier):
 
     f1 = 2 * precision * recall / (precision + recall)
 
+    print('True positive: %i' % tp)
+    print('True negative: %i' % tn)
+    print('False positive: %i' % fp)
+    print('False negative: %i' % fn)
+
     print('')
     print('Accuracy: %i%%' % int(accuracy * 100))
-    print('F1: %f' % f1)
+    print('Precision: %i%%' % int(precision * 100))
+    print('Recall: %i%%' % int(recall * 100))
+    print('F1: %i%%' % int(f1 * 100))
 
 
 def main():
