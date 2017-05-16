@@ -117,7 +117,7 @@ def _bleu(rf, tr, n, match):
         v = mn / ln
 
         if v > 0:
-            bleu += math.log(v)
+            bleu += 1 / n * math.log(v)
 
     return min(1, math.exp(1 - len(rf) / len(tr))) * \
         math.pow(math.exp(bleu), 1 / n)
@@ -164,10 +164,10 @@ def _features(a, b):
     features['pos_bleu3'] = _bleu(a, b, 3, _pos_match)
     features['pos_bleu4'] = _bleu(a, b, 4, _pos_match)
 
-    features['syn1'] = _bleu(a, b, 1, _synonym_match)
-    features['syn2'] = _bleu(a, b, 2, _synonym_match)
-    features['syn3'] = _bleu(a, b, 3, _synonym_match)
-    features['syn4'] = _bleu(a, b, 4, _synonym_match)
+    features['syn_bleu1'] = _bleu(a, b, 1, _synonym_match)
+    features['syn_bleu2'] = _bleu(a, b, 2, _synonym_match)
+    features['syn_bleu3'] = _bleu(a, b, 3, _synonym_match)
+    features['syn_bleu4'] = _bleu(a, b, 4, _synonym_match)
 
     return features
 
@@ -210,6 +210,8 @@ def _build_features(data):
         features.append((feature_vector, label))
 
     print('')
+
+    # print(features)
 
     return features
 
@@ -257,6 +259,7 @@ def _test(classifier):
 
     f1 = 2 * precision * recall / (precision + recall)
 
+    print('')
     print('True positive: %i' % tp)
     print('True negative: %i' % tn)
     print('False positive: %i' % fp)
