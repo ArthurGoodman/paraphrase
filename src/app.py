@@ -150,24 +150,99 @@ def _synonym_match(a, b):
 def _pos_match(a, b):
     return a[1] == b[1]
 
+synsets = {}
+
+
+def _synsets(word):
+    from nltk.corpus import wordnet as wn
+
+    if word in synsets:
+        return synsets[word]
+
+    s = wn.synsets(word)
+
+    synsets[word] = s
+    return s
+
+distances = {}
+
+
+def _dist(w1, w2):
+    sets1 = _synsets(w1[0])
+    sets2 = _synsets(w2[0])
+
+    min_sim = 1e10
+    found_at_least_one = False
+
+    for set1 in sets1:
+        for set2 in sets2:
+            sim = set1.wup_similarity(set2)
+
+            if sim is not None:
+                min_sim = min(min_sim, sim)
+                found_at_least_one = True
+
+    if found_at_least_one:
+        return min_sim
+    else:
+        return None
+
+
+def _dist_cached(w1, w2):
+    t = '%s,%s' % (w1, w2)
+
+    if t in distances:
+        return distances[t]
+
+    d = _dist(w1, w2)
+
+    distances[t] = d
+    return d
+
+
+def _new_super_effective_feature_by_dima(a, b):
+    sim_sum = 0
+    sim_count = 0
+
+    for w1 in a:
+        min_sim = 1e10
+        found_at_least_one = False
+
+        for w2 in b:
+            d = _dist_cached(w1[0], w2[0])
+
+            if d is not None:
+                min_sim = min(min_sim, d)
+                found_at_least_one = True
+
+        if found_at_least_one:
+            sim_sum += min_sim
+            sim_count += 1
+
+    return sim_sum / sim_count
+
 
 def _features(a, b):
     features = {}
 
     features['bleu1'] = _bleu(a, b, 1, _literal_match)
-    features['bleu2'] = _bleu(a, b, 2, _literal_match)
-    features['bleu3'] = _bleu(a, b, 3, _literal_match)
-    features['bleu4'] = _bleu(a, b, 4, _literal_match)
+    # features['bleu2'] = _bleu(a, b, 2, _literal_match)
+    # features['bleu3'] = _bleu(a, b, 3, _literal_match)
+    # features['bleu4'] = _bleu(a, b, 4, _literal_match)
 
-    features['pos_bleu1'] = _bleu(a, b, 1, _pos_match)
-    features['pos_bleu2'] = _bleu(a, b, 2, _pos_match)
-    features['pos_bleu3'] = _bleu(a, b, 3, _pos_match)
-    features['pos_bleu4'] = _bleu(a, b, 4, _pos_match)
+    # features['pos_bleu1'] = _bleu(a, b, 1, _pos_match)
+    # features['pos_bleu2'] = _bleu(a, b, 2, _pos_match)
+    # features['pos_bleu3'] = _bleu(a, b, 3, _pos_match)
+    # features['pos_bleu4'] = _bleu(a, b, 4, _pos_match)
 
-    features['syn_bleu1'] = _bleu(a, b, 1, _synonym_match)
-    features['syn_bleu2'] = _bleu(a, b, 2, _synonym_match)
-    features['syn_bleu3'] = _bleu(a, b, 3, _synonym_match)
-    features['syn_bleu4'] = _bleu(a, b, 4, _synonym_match)
+    # features['syn_bleu1'] = _bleu(a, b, 1, _synonym_match)
+    # features['syn_bleu2'] = _bleu(a, b, 2, _synonym_match)
+    # features['syn_bleu3'] = _bleu(a, b, 3, _synonym_match)
+    # features['syn_bleu4'] = _bleu(a, b, 4, _synonym_match)
+
+    features[
+        'new_super_effective'
+        '_feature_by_dima'] = _new_super_effective_feature_by_dima(a, b)
 
     return features
 
@@ -212,6 +287,35 @@ def _build_features(data):
     print('')
 
     # print(features)
+
+    with open('feature_names.csv', 'wt') as file:
+        feature_vector = features[0]
+
+        s = ''
+
+        for feature_name in feature_vector[0]:
+            if len(s) > 0:
+                s += ','
+
+            s += feature_name
+
+        s += '\n'
+
+        file.write(s)
+
+    with open('features.csv', 'wt') as file:
+        for feature_vector in features:
+            s = ''
+
+            for feature_name in feature_vector[0]:
+                if len(s) > 0:
+                    s += ','
+
+                s += str(feature_vector[0][feature_name])
+
+            s += ',%i\n' % feature_vector[1]
+
+            file.write(s)
 
     return features
 
